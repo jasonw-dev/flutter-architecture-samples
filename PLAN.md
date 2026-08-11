@@ -145,3 +145,43 @@ Each completed stage records what was decided and why. Keep entries short.
 - `App` builds its own `GoRouter`, so each test gets a clean navigation stack.
 - `lib/` is 128 lines. `flutter analyze` clean, `flutter test` green (list → detail with an
   id, and back).
+
+### Stage 3 — Networking + DI
+
+- **HTTP client: `dio`.** Base URL, timeouts and typed `DioException`s come with it, and
+  stage 4 has an interceptor slot waiting rather than a wrapper to grow. `package:http` is
+  smaller and its `MockClient` needs no test dependency, but it decodes nothing and times out
+  nothing on its own, so the difference is where the boilerplate sits, not whether it exists.
+  `createApiClient()` in `lib/core/network/` is the only place a `Dio` is built.
+- **DTO and domain model are separate.** `CharacterDto` in `data/` speaks the API's
+  vocabulary — `image`, `""` for "no sub-species", `origin` as a nested object — and
+  `toDomain()` translates. `Character` in `domain/` has no `fromJson` and no wire names.
+  A single class with a `fromJson` would be ~25 lines against ~90, and cleans the payload in
+  the same one place; what the split adds is that the domain shape is written down
+  independently, and that `domain/` contains nothing that knows HTTP exists. The DTO models
+  only the fields the app reads: `url`, `created` and the 51-entry `episode` list are
+  ignored, because a DTO is a translation of the response, not an archive of it.
+- **The repository interface lives in `domain/`, the implementation in `data/`.** So
+  `features/characters/` now has three layers: `domain/`, `data/`, `presentation/`. Dart
+  makes every class an implicit interface, so an explicit `abstract interface class` is not
+  what makes the repository swappable in tests — it is what keeps `domain/` free of `dio`.
+  There is **no** data source class between the repository and `Dio`: with one backend it
+  would only forward calls.
+- **Whether a use case layer sits between bloc and repository is still stage 5's question.**
+  `domain/` existing does not settle it.
+- **get_it registers per feature, composed in `lib/app/di.dart`** — the same shape as the
+  router. Each feature exports `registerCharacters(GetIt)`; the composition root calls it and
+  registers the shared `Dio`. The registration file sits at the feature root, not in a layer,
+  because it is the one file that spans them. **Everything is a lazy singleton**: everything
+  registered here is stateless and shared, and anything holding per-screen state belongs to
+  that screen instead. `main()` calls `configureDependencies()` before `runApp`.
+- **Test doubles are faked at the boundary, never generated.** The HTTP layer is faked with
+  `http_mock_adapter`, which swaps `Dio`'s transport, so repository tests exercise the
+  shipping code against captured production responses (`test/fixtures/`, unedited). Above the
+  repository, tests hand-write a class that `implements CharacterRepository`. `mockito` was
+  never an option — it needs `build_runner`, which constraint 6 keeps out of `main` — and
+  `mocktail` would add a `when`/`verify` DSL for a single collaborator.
+- `lib/` is 315 lines. `flutter analyze` clean, `flutter test` green (11 tests: parse,
+  empty-`type` and nested-`origin` translation, both endpoints, DI resolution and sharing).
+  Verified once against the live API outside the test suite; the suite itself never uses the
+  network.
