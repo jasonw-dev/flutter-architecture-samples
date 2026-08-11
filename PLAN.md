@@ -103,11 +103,11 @@ Each completed stage records what was decided and why. Keep entries short.
 
 ### Stage 1 — Skeleton
 
-- **Layout: feature-first.** `lib/features/<feature>/{data,domain,presentation}`, with
+- **Layout: feature-first.** Each feature owns a folder under `lib/features/`, with
   cross-feature code in `lib/core/`. With one domain this costs a little ceremony, but the
   template exists to be copied into apps with many features, and layer-first → feature-first
-  is a whole-tree move later. Only the folders that hold code exist today; `data/` and
-  `domain/` appear in stage 3.
+  is a whole-tree move later. Only `presentation/` exists today. Which layers sit beside it
+  is decided in stages 3 and 5, once there is code to judge it against.
 - **Flutter 3.44.9, pinned with fvm** (`.fvmrc`). Latest stable at the time of the stage.
   fvm keeps the pin in the repo without a global install; `.fvm/` is gitignored.
 - **Lint: `flutter_lints`.** The Flutter default, which is what constraint 6 means by a
