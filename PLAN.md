@@ -124,3 +124,24 @@ Each completed stage records what was decided and why. Keep entries short.
   boots, so `flutter test` is green from stage 1 on.
 - `lib/` is 56 lines. `flutter analyze` clean, `flutter test` green, app runs on the iOS
   simulator.
+
+### Stage 2 — Routing
+
+- **Package: `go_router`.** Declarative, maintained by the Flutter team, no codegen. Named
+  `Navigator 1.0` routes were rejected: arguments arrive as `dynamic` and deep links have to
+  be hand-rolled, so the template would teach the thing real apps replace first. `auto_route`
+  is typed but needs `build_runner`, which constraint 6 keeps out of `main`.
+- **Dependency direction: `features → core`, and `core` never imports a feature.** `core` is
+  code shared by several features and owned by none — theme today, http client and error
+  types later. Features do not import each other either; they navigate by path.
+- **Routes are declared per feature, composed in `lib/app/`.** Each feature exports its own
+  `List<RouteBase>` plus the paths it answers to (`CharactersRoutes`); `lib/app/router.dart`
+  only lists them. `lib/app/` is the composition root — the one layer allowed to know every
+  feature — which is why the router does not live in `core/`. Adding a feature is a one-line
+  change there, and stage 3's DI registration has an obvious home.
+- **Parameters travel in the path** (`/characters/:id`). Deep-linkable and typed as `String`
+  at the edge. This deliberately leaves stage 6 free: passing the object instead only adds
+  `extra` to the same route.
+- `App` builds its own `GoRouter`, so each test gets a clean navigation stack.
+- `lib/` is 128 lines. `flutter analyze` clean, `flutter test` green (list → detail with an
+  id, and back).
