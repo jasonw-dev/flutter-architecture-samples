@@ -103,4 +103,24 @@ Each completed stage records what was decided and why. Keep entries short.
 
 ### Stage 1 — Skeleton
 
-_Not started._
+- **Layout: feature-first.** `lib/features/<feature>/{data,domain,presentation}`, with
+  cross-feature code in `lib/core/`. With one domain this costs a little ceremony, but the
+  template exists to be copied into apps with many features, and layer-first → feature-first
+  is a whole-tree move later. Only the folders that hold code exist today; `data/` and
+  `domain/` appear in stage 3.
+- **Flutter 3.44.9, pinned with fvm** (`.fvmrc`). Latest stable at the time of the stage.
+  fvm keeps the pin in the repo without a global install; `.fvm/` is gitignored.
+- **Lint: `flutter_lints`.** The Flutter default, which is what constraint 6 means by a
+  standard lint set. `very_good_analysis` was rejected: stricter, but it forces doc comments
+  and explicit types, which spends the line budget on ceremony.
+- **Domain: Rick and Morty characters** (`rickandmortyapi.com`). No API key, stable, natural
+  list → detail shape, and a payload with enough fields to make the DTO/model split in
+  stage 3 mean something. PokéAPI's detail payload is too fat to read; JSONPlaceholder's is
+  too thin to teach anything.
+- **Theme:** `AppTheme` in `lib/core/theme/`, one seed color, light + dark from
+  `ColorScheme.fromSeed`. 20 lines.
+- Package name `flutter_architecture_samples`, platforms iOS + Android only, created with
+  `flutter create --empty`. A one-test smoke suite (`test/app_test.dart`) asserts the app
+  boots, so `flutter test` is green from stage 1 on.
+- `lib/` is 56 lines. `flutter analyze` clean, `flutter test` green, app runs on the iOS
+  simulator.
