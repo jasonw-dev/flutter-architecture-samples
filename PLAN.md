@@ -185,3 +185,75 @@ Each completed stage records what was decided and why. Keep entries short.
   empty-`type` and nested-`origin` translation, both endpoints, DI resolution and sharing).
   Verified once against the live API outside the test suite; the suite itself never uses the
   network.
+
+### Stages 4–7 — built in one pass
+
+Stages 1–3 were built one at a time, with Jason deciding at each stage. Stages 4 to 7 were
+not: he asked for them in a single pass and reviewed once at the end. The decisions below were
+made against the constraints already written down rather than by discussion, and are recorded
+in the same detail so the reasoning is still auditable.
+
+### Stage 4 — Error handling
+
+- **Failure is a return value, not an exception.** `Result<T>` in `lib/core/result.dart` is
+  sealed with `Ok` and `Err`, so there is no way to reach the value without deciding what
+  happens when there isn't one. `Err` rather than `Error`, which `dart:core` already owns for
+  something different — a bug, not a handled outcome.
+- **`Failure` is a sealed type with three cases**, in `lib/core/failure.dart`:
+  `NetworkFailure` (never reached the server), `ServerFailure(statusCode)` (reached it, it
+  refused), `UnexpectedFailure` (anything else, including a payload that did not parse). A
+  case earns its place only when a screen would say something different about it. Sealed, so
+  handling failures is exhaustive at the compiler rather than by convention.
+- **The conversion happens in the repository implementation.** It is the last layer that knows
+  what a `DioException` is, so it is the layer that stops one. `core/network/` still only
+  configures transport; `domain/` and everything above it never see dio. A private `_guard`
+  wraps each call, and its bare `on Object` is deliberate — a malformed payload throws a cast
+  error, not a `DioException`, and that should read as "something broke", not a crash.
+- **Failure text lives in one extension** (`FailureMessage`), one exhaustive switch. English
+  literals sit there because `main` has no localization; that extension is the single seam an
+  `l10n` branch replaces, instead of every screen that renders an error.
+
+### Stage 5 — List screen
+
+- **No use case layer.** The bloc calls `CharacterRepository` directly. With one repository
+  call per event, a use case would be a one-line forward, and the boundary it would protect is
+  already the repository interface. Adding one later is a local change; adding one now would
+  be ceremony the template teaches by example.
+- **Bloc conventions.** Events are named subject + past-tense verb (`CharactersRequested`) and
+  say what happened, never what to do about it. States are sealed, so the widget's `switch` is
+  exhaustive and a new state cannot be forgotten in the UI. A bloc file imports
+  `package:bloc`, never `package:flutter_bloc` — hence both packages in `pubspec.yaml`: that
+  split is what makes "no Flutter inside a bloc" checkable by reading the imports.
+- **Blocs are not registered in get_it.** A route creates one per screen and it dies with the
+  screen, which is exactly what stage 3's registration policy said the locator is not for.
+  Features receive their repository as an argument (`charactersRoutes(repository)`) rather
+  than reading the locator, because a feature importing `lib/app/` would reverse the
+  dependency arrow. `main()` is now the only place that both registers and resolves.
+- **`FailureView` in `core/`** renders any `Failure` with a retry button. It is in `core`
+  because a retry that some screens have and others forget is how an app grows dead ends.
+- **Images carry an `errorBuilder`.** Without one a broken image throws, and in a widget test
+  — where nothing answers an HTTP request — every row would. The alternative was ~55 lines of
+  `HttpOverrides` scaffolding in `test/`; handling a broken image is what a real app needs
+  anyway.
+
+### Stage 6 — Detail screen
+
+- **The detail screen is given an id and fetches.** The list could have handed over the
+  character it already has and saved a request. It does not: `/characters/2` opened from a
+  link or a cold start has an id and nothing else, and a screen that works one way from the
+  list and another way from a link is two screens. The cost is one request; the benefit is
+  that deep linking is not a special case.
+- The detail bloc repeats the list bloc's shape rather than sharing a generic base. Two
+  concrete blocs are easier to read than one abstraction over two cases, and a template is
+  copied more often than it is extended.
+
+### Stage 7 — Freeze
+
+- **The line ceiling was not adjusted.** `lib/` is 699 lines against 1,500 — 47%. The
+  one-time adjustment written into constraint 4 stays unused, and stays available.
+- **Nothing was demoted to a branch.** Every file in `main` is on the path from a URL to a
+  rendered screen, or is the wiring that connects them.
+- **README carries the conventions and the branch guide**, each about a page, every rule
+  pointing at code that exists. The branch table lists the five planned topics as not built
+  yet rather than pretending otherwise.
+- `flutter analyze` clean, `flutter test` green (20 tests), app runs.

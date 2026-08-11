@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_architecture_samples/app/router.dart';
 import 'package:flutter_architecture_samples/core/theme/app_theme.dart';
 import 'package:go_router/go_router.dart';
 
-/// The root widget. It builds its own router so every `App()` — including one
-/// per test — starts from a clean navigation stack.
+/// The root widget. The router is passed in rather than built here, so a test
+/// can start the real app on top of fake repositories.
 class App extends StatelessWidget {
-  App({super.key, GoRouter? router}) : _router = router ?? createRouter();
+  const App({required this.router, super.key});
 
-  final GoRouter _router;
+  final GoRouter router;
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +15,7 @@ class App extends StatelessWidget {
       title: 'Characters',
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      routerConfig: _router,
+      routerConfig: router,
     );
   }
 }
